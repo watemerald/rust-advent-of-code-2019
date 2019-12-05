@@ -91,7 +91,10 @@ fn part2_iter(limits: &(usize, usize)) -> usize {
 fn part1_generator(limits: &(usize, usize)) -> usize {
     let (a, b) = *limits;
 
-    unimplemented!()
+    generator(vec![], false)
+        .iter()
+        .filter(|&&n| n >= a && n <= b)
+        .count()
 }
 
 fn generator(cur_dig: Vec<usize>, condition_met: bool) -> Vec<usize> {
@@ -109,8 +112,12 @@ fn generator(cur_dig: Vec<usize>, condition_met: bool) -> Vec<usize> {
             // Numbers can't decrease as we go on
             let mut k = Vec::new();
 
-            for n in (*val..10).map(|n| generator(vec![n], false)) {
-                k.extend(n);
+            for num in (*val..10).map(|n| {
+                let mut tmp = cur_dig.clone();
+                tmp.push(n);
+                generator(tmp, n == *val || condition_met)
+            }) {
+                k.extend(num);
             }
 
             k
@@ -119,20 +126,89 @@ fn generator(cur_dig: Vec<usize>, condition_met: bool) -> Vec<usize> {
             // Password can start with any digit
             let mut k = Vec::new();
 
-            for n in (0..10).map(|n| generator(vec![n], false)) {
-                k.extend(n);
+            for num in (0..10).map(|n| generator(vec![n], false)) {
+                k.extend(num);
             }
 
             k
         }
     }
+}
 
-    // unimplemented!()
+#[aoc(day4, part2, generator)]
+fn part2_generator(limits: &(usize, usize)) -> usize {
+    let (a, b) = *limits;
+
+    generator_part2(vec![], false, false)
+        .iter()
+        .filter(|&&n| n >= a && n <= b)
+        .count()
+}
+
+fn generator_part2(
+    cur_dig: Vec<usize>,
+    condition_met: bool,
+    condition_override: bool,
+) -> Vec<usize> {
+    if cur_dig.len() == 6 {
+        if condition_met || condition_override {
+            let num = cur_dig.iter().fold(0, |acc, x| 10 * acc + x);
+            return vec![num];
+        } else {
+            return Vec::new();
+        }
+    }
+
+    match cur_dig.split_last() {
+        Some((val, elements)) => {
+            // Numbers can't decrease as we go on
+            let mut k = Vec::new();
+
+            for num in (*val..10).map(|n| {
+                let mut tmp = cur_dig.clone();
+                tmp.push(n);
+                // generator(tmp, n == *val || condition_met)
+                if n == *val {
+                    match elements.last() {
+                        Some(val2) => {
+                            if n == *val2 {
+                                generator_part2(tmp, false, condition_override)
+                            } else {
+                                generator_part2(tmp, true, condition_override)
+                            }
+                        }
+                        None => generator_part2(tmp, true, condition_override),
+                    }
+                } else {
+                    generator_part2(tmp, false, condition_met || condition_override)
+                }
+            }) {
+                k.extend(num);
+            }
+
+            k
+        }
+        None => {
+            // Password can start with any digit
+            let mut k = Vec::new();
+
+            for num in (0..10).map(|n| generator_part2(vec![n], false, false)) {
+                k.extend(num);
+            }
+
+            k
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_generator_2() {
+        println!("{:?}", generator_part2(vec![], false, false))
+    }
 
     #[test]
     fn test_is_possible_password_part1() {
